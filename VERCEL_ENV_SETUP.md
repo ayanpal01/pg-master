@@ -8,12 +8,11 @@ Add these variables:
 
 ```bash
 # Required
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/pg-meal-tracker
-SESSION_SECRET=paste_64_char_secret_here
+NEXT_PUBLIC_BACKEND_URL=https://your-backend.vercel.app
 NODE_ENV=production
 
-# Optional - Backend API (if you want to use Express backend)
-NEXT_PUBLIC_BACKEND_URL=https://your-backend.vercel.app
+# Note: MONGODB_URI and SESSION_SECRET are NO LONGER needed in frontend
+# The backend handles all database and session management
 ```
 
 ---
@@ -37,13 +36,13 @@ NODE_ENV=production
 
 ### 🔐 Generate Secrets
 
-Run this command to generate secure secrets:
+Run this command to generate secure secret for backend JWT:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 ```
 
-Use the output for `SESSION_SECRET` (frontend) and `JWT_SECRET` (backend).
+Use the output for `JWT_SECRET` (backend only).
 
 ---
 

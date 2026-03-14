@@ -110,11 +110,11 @@ Add environment variables in Vercel Dashboard:
 3. Add the following variables:
 
 ```
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/pg-meal-tracker
-SESSION_SECRET=<generate-a-64-char-secret>
 NEXT_PUBLIC_BACKEND_URL=https://pgmaster-backend.vercel.app
 NODE_ENV=production
 ```
+
+**Note**: `MONGODB_URI` and `SESSION_SECRET` are no longer needed in frontend as the backend handles database and session management.
 
 **Optional Firebase Variables** (if using Firebase):
 ```
@@ -195,21 +195,21 @@ curl https://pgmaster-backend.vercel.app/health
 
 ## Architecture Notes
 
-Your application has **two API layers**:
+Your application uses a **clean separation** between frontend and backend:
 
-1. **Next.js API Routes** (`frontend/src/app/api/*`): 
-   - Connect directly to MongoDB
-   - Used by default
+1. **Frontend (Next.js)** (`frontend/src/*`): 
+   - Pure React UI components
+   - No database access
+   - Calls Express backend API
    
-2. **Express Backend** (`backend/src/*`):
-   - Separate REST API
-   - Optional - set `NEXT_PUBLIC_BACKEND_URL` to use it
+2. **Backend (Express)** (`backend/src/*`):
+   - REST API endpoints
+   - MongoDB database connection
+   - Authentication & business logic
 
-**Current Setup**: Frontend uses its own Next.js API routes that connect directly to MongoDB. The Express backend is available but not required unless you specifically configure the frontend to use it.
+**Current Setup**: Frontend makes HTTP requests to the Express backend. All API logic is in the backend. The old Next.js API routes (`frontend/src/app/api/*`) are no longer used and can be deleted if desired.
 
-If you want to migrate to using the Express backend exclusively, you'll need to:
-1. Update frontend components to call `NEXT_PUBLIC_BACKEND_URL` instead of Next.js API routes
-2. Remove or disable Next.js API routes
+For detailed architecture information, see [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
 

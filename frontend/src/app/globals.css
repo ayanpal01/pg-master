@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0B0F14;
+  --color-card: #11161D;
+  --color-card-secondary: #1A2129;
+  --color-primary: #22C55E;
+  --color-accent: #06B6D4;
+  --color-foreground: #E6EDF3;
+  --color-foreground-muted: #9DA7B3;
+  --color-border: #1F2937;
+  --color-border-bright: #2D3748;
+}
+
+:root {
+  --background: #0B0F14;
+  --foreground: #E6EDF3;
+  --primary: #22C55E;
+  --accent: #06B6D4;
+  --card: #11161D;
+  --border: #1F2937;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: "Inter", "Outfit", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  .glass-card {
+    background: rgba(17, 22, 29, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .glass-card:hover {
+    background: rgba(17, 22, 29, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary {
+    @apply bg-primary hover:bg-primary/90 text-black font-semibold px-4 py-2 rounded-xl transition-all shadow-lg shadow-primary/20 active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .btn-accent {
+    @apply bg-accent hover:bg-accent/90 text-black font-semibold px-4 py-2 rounded-xl transition-all shadow-lg shadow-accent/20 active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .btn-outline {
+    @apply border border-border bg-transparent hover:bg-white/5 text-foreground font-semibold px-4 py-2 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2;
+  }
+  
+  .stat-card-gradient-primary {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0) 100%);
+  }
+  
+  .stat-card-gradient-accent {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0) 100%);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1F2937;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2D3748;
+}
