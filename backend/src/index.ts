@@ -17,6 +17,8 @@ import setupRoutes from './routes/setup';
 const app = express();
 const PORT = Number(process.env.PORT ?? 4000);
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+const IS_VERCEL = process.env.VERCEL === '1';
+let dbInitPromise: Promise<unknown> | null = null;
 
 // ─── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet({
@@ -36,6 +38,23 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+async function ensureDbConnected() {
+  if (!dbInitPromise) {
+    dbInitPromise = connectDB();
+  }
+  await dbInitPromise;
+}
+
+app.use(async (_req: Request, res: Response, next) => {
+  try {
+    await ensureDbConnected();
+    next();
+  } catch (error) {
+    console.error('❌ Database connection error:', error);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/attendance', attendanceRoutes);
@@ -52,13 +71,13 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // ─── 404 handler ──────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not found {Fuck off} ' });
+  res.status(404).json({ error: 'Not found' });
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 async function start() {
   try {
-    await connectDB();
+    await ensureDbConnected();
     console.log('✅ Connected to MongoDB');
     app.listen(PORT, () => {
       console.log(`🚀 PG Master API running on http://localhost:${PORT}`);
@@ -70,4 +89,8 @@ async function start() {
   }
 }
 
-start();
+if (!IS_VERCEL) {
+  start();
+}
+
+export default app;
