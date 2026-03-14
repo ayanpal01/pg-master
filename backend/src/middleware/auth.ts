@@ -37,14 +37,18 @@ export async function authMiddleware(
     await connectDB();
     const user = await User.findOne({ uniqueKey: payload.uid, active: true }).populate('pgId');
     if (!user) {
-      res.status(401).json({ error: 'User not found' });
+      res.clearCookie('session');
+      res.status(401).json({ error: 'User not found or inactive' });
       return;
     }
+    
+    // Attach user to request for route handlers
     req.user = user;
     req.uid = payload.uid;
     next();
   } catch (err) {
     console.error('[authMiddleware] DB error:', err);
+    res.clearCookie('session');
     res.status(500).json({ error: 'Internal server error' });
   }
 }

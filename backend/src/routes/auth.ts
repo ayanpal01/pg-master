@@ -8,9 +8,9 @@ import { LoginBody } from '../types';
 const router = Router();
 
 const COOKIE_OPTS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: (process.env.NODE_ENV === 'production' ? 'strict' : 'lax') as 'strict' | 'lax',
+  httpOnly: true, // Prevent JavaScript access to cookie
+  secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+  sameSite: 'lax' as 'lax', // Protect against CSRF while allowing navigation
   path: '/',
   maxAge: 24 * 60 * 60 * 1000, // 24h
 };

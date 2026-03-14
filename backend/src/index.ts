@@ -52,7 +52,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // ─── 404 handler ──────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not found' });
+  res.status(404).json({ error: 'Not found {Fuck off} ' });
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
