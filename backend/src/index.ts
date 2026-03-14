@@ -19,6 +19,7 @@ const PORT = Number(process.env.PORT ?? 4000);
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
 const IS_VERCEL = process.env.VERCEL === '1';
 let dbInitPromise: Promise<unknown> | null = null;
+let dbConnected = false;
 
 // ─── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet({
@@ -43,15 +44,27 @@ async function ensureDbConnected() {
     dbInitPromise = connectDB();
   }
   await dbInitPromise;
+  dbConnected = true;
 }
 
-app.use(async (_req: Request, res: Response, next) => {
+// ─── Health check (must stay available even if DB is down) ───────────────────
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    db: dbConnected ? 'connected' : 'disconnected',
+    time: new Date().toISOString(),
+  });
+});
+
+app.use('/api', async (_req: Request, res: Response, next) => {
   try {
     await ensureDbConnected();
     next();
   } catch (error) {
     console.error('❌ Database connection error:', error);
-    res.status(500).json({ error: 'Database connection failed' });
+    dbInitPromise = null;
+    dbConnected = false;
+    res.status(503).json({ error: 'Database unavailable. Please try again shortly.' });
   }
 });
 
@@ -64,11 +77,6 @@ app.use('/api/pg', pgRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/setup', setupRoutes);   // public — no auth required
 
-// ─── Health check ─────────────────────────────────────────────────────────────
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
-});
-
 // ─── 404 handler ──────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found' });
@@ -77,12 +85,16 @@ app.use((_req: Request, res: Response) => {
 // ─── Start ────────────────────────────────────────────────────────────────────
 async function start() {
   try {
-    await ensureDbConnected();
-    console.log('✅ Connected to MongoDB');
     app.listen(PORT, () => {
       console.log(`🚀 PG Master API running on http://localhost:${PORT}`);
       console.log(`   CORS allowed for: ${FRONTEND_URL}`);
     });
+    try {
+      await ensureDbConnected();
+      console.log('✅ Connected to MongoDB');
+    } catch (err) {
+      console.error('⚠️ MongoDB unavailable at startup. API routes will return 503 until DB is reachable.', err);
+    }
   } catch (err) {
     console.error('❌ Failed to start:', err);
     process.exit(1);
