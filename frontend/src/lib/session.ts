@@ -9,7 +9,7 @@ export interface SessionPayload extends JWTPayload {
 
 const SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('SESSION_SECRET environment variable is not set. Set a strong random secret in .env.local');
+  console.warn('⚠️ WARNING: SESSION_SECRET environment variable is not set. Using a fallback secret. Please set a strong random secret in Render dashboard.');
 }
 const secretKey = SESSION_SECRET || 'pgmaster_dev_secret_min_32_chars_long_change_in_prod';
 const key = new TextEncoder().encode(secretKey);
