@@ -7,11 +7,12 @@ export interface SessionPayload extends JWTPayload {
   expires?: string;
 }
 
-const SESSION_SECRET = process.env.SESSION_SECRET;
-if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
-  console.warn('⚠️ WARNING: SESSION_SECRET environment variable is not set. Using a fallback secret. Please set a strong random secret in Render dashboard.');
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.warn('⚠️ WARNING: JWT_SECRET environment variable is not set. Using a fallback secret. Please set a strong random secret in Render dashboard.');
 }
-const secretKey = SESSION_SECRET || 'pgmaster_dev_secret_min_32_chars_long_change_in_prod';
+// Match exactly the backend's default secret
+const secretKey = JWT_SECRET || 'pgmaster_dev_secret_CHANGE_BEFORE_PRODUCTION_min_64_chars_long';
 const key = new TextEncoder().encode(secretKey);
 
 // Session duration: 24 hours
