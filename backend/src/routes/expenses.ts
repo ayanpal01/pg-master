@@ -99,7 +99,8 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response): Promise<v
       res.status(403).json({ error: 'Forbidden' }); return;
     }
     const { amount, description, date, spentBy } = req.body as UpdateExpenseBody;
-    const expense = await ExpenseService.updateExpense(req.params['id']!, {
+    const expenseId = Array.isArray(req.params['id']) ? req.params['id'][0] : req.params['id'];
+    const expense = await ExpenseService.updateExpense(expenseId!, {
       amount,
       description,
       date: date ? new Date(date) : undefined,
@@ -131,7 +132,8 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response): Promise<
       return;
     }
     
-    await ExpenseService.deleteExpense(req.params['id']!);
+    const expenseId = Array.isArray(req.params['id']) ? req.params['id'][0] : req.params['id'];
+    await ExpenseService.deleteExpense(expenseId!);
     res.json({ success: true });
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error';
