@@ -1,10 +1,11 @@
 import React from 'react';
+import { TrendingDown, TrendingUp } from 'lucide-react';
 import { Card } from './Card';
 
 interface StatCardProps {
   label: string;
   value: string | number;
-  icon?: React.ReactNode;
+  icon?: React.ReactElement<{ size?: number; className?: string }>;
   description?: string;
   trend?: {
     value: number | string;
@@ -53,7 +54,7 @@ export const StatCard: React.FC<StatCardProps> = ({
         </div>
         {icon && (
           <div className={`p-3 rounded-xl ${bgMap[color]} ${colorMap[color]} border border-white/5 shadow-inner`}>
-            {React.cloneElement(icon as React.ReactElement, { size: 20 })}
+            {React.cloneElement(icon, { size: 20 })}
           </div>
         )}
       </div>

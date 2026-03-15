@@ -33,4 +33,9 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 .env
-
+node_modules/
+dist/
+build/
+coverage/
+*.log
+*.tsbuildinfo

@@ -9,6 +9,11 @@ export interface AuthenticatedRequest extends Request {
   uid?: string;
 }
 
+function clearSessionCookie(res: Response) {
+  res.clearCookie('session', { path: '/', sameSite: 'none', secure: true });
+  res.clearCookie('session', { path: '/', sameSite: 'lax' });
+}
+
 /**
  * Validates the JWT from the httpOnly cookie and attaches the DB user to the request.
  */
@@ -28,7 +33,7 @@ export async function authMiddleware(
   try {
     payload = await verifyToken(token);
   } catch {
-    res.clearCookie('session');
+    clearSessionCookie(res);
     res.status(401).json({ error: 'Session expired or invalid' });
     return;
   }
@@ -37,7 +42,7 @@ export async function authMiddleware(
     await connectDB();
     const user = await User.findOne({ uniqueKey: payload.uid, active: true }).populate('pgId');
     if (!user) {
-      res.clearCookie('session');
+      clearSessionCookie(res);
       res.status(401).json({ error: 'User not found or inactive' });
       return;
     }
@@ -48,7 +53,7 @@ export async function authMiddleware(
     next();
   } catch (err) {
     console.error('[authMiddleware] DB error:', err);
-    res.clearCookie('session');
+    clearSessionCookie(res);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

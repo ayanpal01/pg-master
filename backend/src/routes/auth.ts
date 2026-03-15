@@ -7,13 +7,32 @@ import { LoginBody } from '../types';
 
 const router = Router();
 
-const COOKIE_OPTS = {
-  httpOnly: true, // Prevent JavaScript access to cookie
-  secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-  sameSite: 'lax' as 'lax', // Protect against CSRF while allowing navigation
-  path: '/',
-  maxAge: 24 * 60 * 60 * 1000, // 24h
-};
+type SameSite = 'lax' | 'strict' | 'none';
+
+function getCookieOptions(req: Request) {
+  const origin = req.get('origin');
+  const requestHost = req.get('host');
+
+  let isCrossSite = false;
+  if (origin && requestHost) {
+    try {
+      isCrossSite = new URL(origin).host !== requestHost;
+    } catch {
+      isCrossSite = false;
+    }
+  }
+
+  const sameSite: SameSite = isCrossSite ? 'none' : 'lax';
+  const secure = sameSite === 'none' ? true : process.env.NODE_ENV === 'production';
+
+  return {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: '/',
+    maxAge: 24 * 60 * 60 * 1000,
+  };
+}
 
 // POST /api/auth/login
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
@@ -32,7 +51,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     }
 
     const token = await signToken(user.uniqueKey);
-    res.cookie('session', token, COOKIE_OPTS);
+    res.cookie('session', token, getCookieOptions(req));
     res.json(user);
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error';
@@ -42,7 +61,8 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 
 // POST /api/auth/logout
 router.post('/logout', (_req: Request, res: Response): void => {
-  res.clearCookie('session', { path: '/' });
+  res.clearCookie('session', { path: '/', sameSite: 'none', secure: true });
+  res.clearCookie('session', { path: '/', sameSite: 'lax' });
   res.json({ success: true });
 });
 
@@ -73,7 +93,7 @@ router.post('/reset-key', authMiddleware, async (req: AuthenticatedRequest, res:
 
     // Issue a new token
     const token = await signToken(newKey);
-    res.cookie('session', token, COOKIE_OPTS);
+    res.cookie('session', token, getCookieOptions(req));
     res.json({ newKey });
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error';

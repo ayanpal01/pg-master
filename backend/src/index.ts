@@ -17,6 +17,7 @@ import setupRoutes from './routes/setup';
 const app = express();
 const PORT = Number(process.env.PORT ?? 4000);
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+const ALLOWED_ORIGINS = FRONTEND_URL.split(',').map((url) => url.trim()).filter(Boolean);
 const IS_VERCEL = process.env.VERCEL === '1';
 let dbInitPromise: Promise<unknown> | null = null;
 let dbConnected = false;
@@ -28,7 +29,19 @@ app.use(helmet({
 
 // ─── CORS — must match the frontend origin exactly ─────────────────────────────
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`Origin not allowed by CORS: ${origin}`));
+  },
   credentials: true,                   // Required for httpOnly cookie exchange
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -87,7 +100,7 @@ async function start() {
   try {
     app.listen(PORT, () => {
       console.log(`🚀 PG Master API running on http://localhost:${PORT}`);
-      console.log(`   CORS allowed for: ${FRONTEND_URL}`);
+      console.log(`   CORS allowed for: ${ALLOWED_ORIGINS.join(', ')}`);
     });
     try {
       await ensureDbConnected();

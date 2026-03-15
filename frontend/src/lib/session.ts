@@ -1,6 +1,11 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
+
+export interface SessionPayload extends JWTPayload {
+  uid: string;
+  expires?: string;
+}
 
 const SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
@@ -13,7 +18,7 @@ const key = new TextEncoder().encode(secretKey);
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 const SESSION_DURATION_STR = '24h';
 
-export async function encrypt(payload: Record<string, unknown>) {
+export async function encrypt(payload: SessionPayload) {
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -21,11 +26,11 @@ export async function encrypt(payload: Record<string, unknown>) {
     .sign(key);
 }
 
-export async function decrypt(input: string): Promise<Record<string, unknown>> {
+export async function decrypt(input: string): Promise<SessionPayload> {
   const { payload } = await jwtVerify(input, key, {
     algorithms: ['HS256'],
   });
-  return payload as Record<string, unknown>;
+  return payload as SessionPayload;
 }
 
 export async function createSession(uid: string) {
