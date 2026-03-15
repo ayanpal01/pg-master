@@ -64,7 +64,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const menuItems = [
     { href: '/dashboard', icon: <LayoutDashboard />, label: 'Dashboard' },
-    { href: '/attendance', icon: <Calendar />, label: 'Attendance' },
+    // Only show Attendance to MANAGER
+    ...(user?.role === 'MANAGER' ? [{ href: '/attendance', icon: <Calendar />, label: 'Attendance' }] : []),
     { href: '/history', icon: <History />, label: 'History' },
     { href: '/profile', icon: <UserIcon />, label: 'Account' },
   ];

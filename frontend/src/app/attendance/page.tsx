@@ -36,8 +36,9 @@ export default function AttendancePage() {
         setAttendance(dayAtt.records || []);
       } else if (user?.role === 'MANAGER') {
         const defaultAtt: any[] = [];
+        const mealTypes = (user?.pgId?.mealTypes || ['breakfast', 'lunch', 'dinner']);
         memRes.data.forEach((m: any) => {
-          user.pgId.mealTypes.forEach((meal: string) => {
+          mealTypes.forEach((meal: string) => {
             defaultAtt.push({ userId: m._id, mealType: meal, status: true });
           });
         });
@@ -119,7 +120,7 @@ export default function AttendancePage() {
                </div>
                
                <div className="grid grid-cols-1 gap-2">
-                  {user.pgId.mealTypes.map((meal: string) => {
+                  {(user?.pgId?.mealTypes || ['breakfast', 'lunch', 'dinner']).map((meal: string) => {
                     const record = attendance.find(a => a.userId === member._id && a.mealType === meal);
                     const suggested = record?.memberProposedStatus;
                     
