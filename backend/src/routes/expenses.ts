@@ -63,7 +63,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
 router.patch('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     // Security: Only managers can approve/reject
-    if (!req.user || req.user.role !== 'MANAGER') {
+    if (!req.user?.pgId || req.user.role !== 'MANAGER') {
       res.status(403).json({ error: 'Only managers can approve/reject expenses' }); 
       return;
     }
@@ -79,7 +79,7 @@ router.patch('/', async (req: AuthenticatedRequest, res: Response): Promise<void
     const Expense = (await import('../models/expense.model')).default;
     await connectDB();
     const expense = await Expense.findById(expenseId);
-    if (!expense || expense.pgId.toString() !== req.user.pgId?.toString()) {
+    if (!expense || expense.pgId.toString() !== req.user.pgId.toString()) {
       res.status(403).json({ error: 'Cannot modify expense from different PG' });
       return;
     }
@@ -95,11 +95,33 @@ router.patch('/', async (req: AuthenticatedRequest, res: Response): Promise<void
 // PATCH /api/expenses/:id — edit expense fields
 router.patch('/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    if (!req.user || req.user.role !== 'MANAGER') {
+    if (!req.user?.pgId || req.user.role !== 'MANAGER') {
       res.status(403).json({ error: 'Forbidden' }); return;
     }
-    const { amount, description, date, spentBy } = req.body as UpdateExpenseBody;
+    
+    const { connectDB } = await import('../lib/db');
+    const Expense = (await import('../models/expense.model')).default;
+    await connectDB();
+    
     const expenseId = Array.isArray(req.params['id']) ? req.params['id'][0] : req.params['id'];
+    const existingExpense = await Expense.findById(expenseId);
+    
+    if (!existingExpense || existingExpense.pgId.toString() !== req.user.pgId.toString()) {
+      res.status(403).json({ error: 'Cannot modify expense from different PG' });
+      return;
+    }
+
+    const { amount, description, date, spentBy } = req.body as UpdateExpenseBody;
+    
+    if (spentBy) {
+      const User = (await import('../models/user.model')).default;
+      const spentByUser = await User.findById(spentBy);
+      if (!spentByUser || spentByUser.pgId?.toString() !== req.user.pgId.toString()) {
+        res.status(403).json({ error: 'Cannot assign expense to user from different PG' });
+        return;
+      }
+    }
+
     const expense = await ExpenseService.updateExpense(expenseId!, {
       amount,
       description,
@@ -117,7 +139,7 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response): Promise<v
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     // Security: Only managers can delete
-    if (!req.user || req.user.role !== 'MANAGER') {
+    if (!req.user?.pgId || req.user.role !== 'MANAGER') {
       res.status(403).json({ error: 'Only managers can delete expenses' }); 
       return;
     }
@@ -127,7 +149,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response): Promise<
     const Expense = (await import('../models/expense.model')).default;
     await connectDB();
     const expense = await Expense.findById(req.params['id']!);
-    if (!expense || expense.pgId.toString() !== req.user.pgId?.toString()) {
+    if (!expense || expense.pgId.toString() !== req.user.pgId.toString()) {
       res.status(403).json({ error: 'Cannot delete expense from different PG' });
       return;
     }

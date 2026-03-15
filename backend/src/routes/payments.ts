@@ -34,7 +34,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<void> 
 router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     // Security: Only managers can record payments
-    if (!req.user || req.user.role !== 'MANAGER') {
+    if (!req.user?.pgId || req.user.role !== 'MANAGER') {
       res.status(403).json({ error: 'Only managers can record payments' }); 
       return;
     }
@@ -50,7 +50,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
     // Security: Verify the user belongs to the manager's PG
     const User = (await import('../models/user.model')).default;
     const targetUser = await User.findById(userId);
-    if (!targetUser || targetUser.pgId?.toString() !== req.user.pgId?.toString()) {
+    if (!targetUser || targetUser.pgId?.toString() !== req.user.pgId.toString()) {
       res.status(403).json({ error: 'Cannot record payment for user from different PG' });
       return;
     }
@@ -74,7 +74,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
 router.patch('/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     // Security: Only managers can update payments
-    if (!req.user || req.user.role !== 'MANAGER') {
+    if (!req.user?.pgId || req.user.role !== 'MANAGER') {
       res.status(403).json({ error: 'Only managers can update payments' }); 
       return;
     }
@@ -83,7 +83,7 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response): Promise<v
     
     // Security: Verify payment belongs to manager's PG
     const existingPayment = await Payment.findById(req.params['id']);
-    if (!existingPayment || existingPayment.pgId.toString() !== req.user.pgId?.toString()) {
+    if (!existingPayment || existingPayment.pgId.toString() !== req.user.pgId.toString()) {
       res.status(403).json({ error: 'Cannot modify payment from different PG' });
       return;
     }
@@ -104,7 +104,7 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response): Promise<v
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     // Security: Only managers can delete payments
-    if (!req.user || req.user.role !== 'MANAGER') {
+    if (!req.user?.pgId || req.user.role !== 'MANAGER') {
       res.status(403).json({ error: 'Only managers can delete payments' }); 
       return;
     }
@@ -113,7 +113,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response): Promise<
     
     // Security: Verify payment belongs to manager's PG
     const payment = await Payment.findById(req.params['id']);
-    if (!payment || payment.pgId.toString() !== req.user.pgId?.toString()) {
+    if (!payment || payment.pgId.toString() !== req.user.pgId.toString()) {
       res.status(403).json({ error: 'Cannot delete payment from different PG' });
       return;
     }
