@@ -40,7 +40,7 @@ export async function authMiddleware(
 
   try {
     await connectDB();
-    const user = await User.findOne({ uniqueKey: payload.uid, active: true }).populate('pgId');
+    const user = await User.findOne({ uniqueKey: payload.uid, active: true });
     if (!user) {
       clearSessionCookie(res);
       res.status(401).json({ error: 'User not found or inactive' });
