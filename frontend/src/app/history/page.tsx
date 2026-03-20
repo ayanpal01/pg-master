@@ -4,12 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import apiClient from '@/lib/api-client';
 import { 
-  ChevronLeft, ChevronRight, PieChart, Users, 
-  DollarSign, Calendar, Shield, Info, ArrowUpRight
+  ChevronLeft, ChevronRight, PieChart,
+  DollarSign, Calendar, Shield, Info, Download
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatCard } from '@/components/ui/StatCard';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function HistoryPage() {
   const { user } = useAuth();
@@ -56,6 +58,155 @@ export default function HistoryPage() {
   const totalExpenses = data?.expenses.reduce((acc: number, curr: any) => acc + curr.amount, 0) || 0;
   const mealCharge = data?.savedStat ? data.savedStat.mealCharge : (totalMeals > 0 ? totalExpenses / totalMeals : 0);
   const totalPayments = data?.payments.reduce((acc: number, curr: any) => acc + curr.amount, 0) || 0;
+
+  const memberSummaries = data?.members.map((member: any) => {
+    const meals = data.attendance.reduce((acc: number, curr: any) => 
+      acc + (curr.isOfficial ? curr.records.filter((r: any) => r.userId === member._id && r.status).length : 0), 0);
+    const paid = data.payments
+      .filter((p: any) => (p.userId?._id || p.userId) === member._id)
+      .reduce((acc: number, p: any) => acc + p.amount, 0);
+    const cookingChargePerUser = data.pg?.cookingChargePerUser?.[member._id] || 0;
+    const cookingCharge = meals > 0 ? cookingChargePerUser : 0;
+    const mealCost = meals * mealCharge;
+    const balance = paid - mealCost - cookingCharge;
+
+    return {
+      id: member._id,
+      name: member.name,
+      role: member.role,
+      meals,
+      mealCost,
+      paid,
+      cookingCharge,
+      balance,
+    };
+  }) || [];
+
+  const handleDownloadPdf = () => {
+    if (!data) return;
+
+    const doc = new jsPDF({ unit: 'pt' });
+    const pgName = data.pg?.name || 'PG';
+    const title = `${pgName} Monthly Report - ${monthStr}`;
+    doc.setFontSize(16);
+    doc.text(title, 40, 40);
+
+    doc.setFontSize(12);
+    doc.text('Individual Summary', 40, 70);
+    autoTable(doc, {
+      startY: 80,
+      head: [[
+        'Member',
+        'Meals',
+        'Meal Cost',
+        'Paid',
+        'Chef Fee',
+        'Balance'
+      ]],
+      body: memberSummaries.map((row: any) => [
+        row.name,
+        row.meals,
+        `Rs ${row.mealCost.toFixed(0)}`,
+        `Rs ${row.paid}`,
+        `Rs ${row.cookingCharge}`,
+        `Rs ${row.balance.toFixed(0)}`,
+      ]),
+      styles: { fontSize: 9 },
+      theme: 'grid',
+    });
+
+    const attendanceMap = new Map<number, Map<string, number>>();
+    data.attendance
+      .filter((record: any) => record.isOfficial)
+      .forEach((record: any) => {
+        const dateObj = new Date(record.date);
+        const day = dateObj.getDate();
+        if (!attendanceMap.has(day)) {
+          attendanceMap.set(day, new Map());
+        }
+        record.records
+          .filter((r: any) => r.status)
+          .forEach((r: any) => {
+            const dayMap = attendanceMap.get(day)!;
+            const current = dayMap.get(r.userId) || 0;
+            dayMap.set(r.userId, current + 1);
+          });
+      });
+
+    const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+    const dayLabels = Array.from({ length: daysInMonth }, (_, i) => String(i + 1));
+
+    const attendanceRows = data.members.map((member: any) => {
+      const dayCounts = dayLabels.map((label) => {
+        const day = Number(label);
+        return attendanceMap.get(day)?.get(member._id) || 0;
+      });
+      const total = dayCounts.reduce((acc: number, value: number) => acc + value, 0);
+      return [member.name, ...dayCounts, total];
+    });
+
+    let nextY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 20 : 120;
+    doc.text('Attendance Summary', 40, nextY);
+    const attendanceHead = ['Member', ...dayLabels, 'Total'];
+    const attendanceEmptyRow = Array(attendanceHead.length).fill('-');
+    autoTable(doc, {
+      startY: nextY + 10,
+      head: [attendanceHead],
+      body: attendanceRows.length > 0 ? attendanceRows : [attendanceEmptyRow],
+      styles: { fontSize: 7 },
+      theme: 'grid',
+    });
+
+    const paymentMap = new Map<string, Map<number, number>>();
+    const paymentDays = new Set<number>();
+    data.payments.forEach((payment: any) => {
+      const name = payment.userId?.name || 'Unknown';
+      const day = new Date(payment.date).getDate();
+      paymentDays.add(day);
+      if (!paymentMap.has(name)) {
+        paymentMap.set(name, new Map());
+      }
+      const memberMap = paymentMap.get(name)!;
+      memberMap.set(day, (memberMap.get(day) || 0) + payment.amount);
+    });
+
+    const paymentDayLabels = Array.from(paymentDays).sort((a, b) => a - b).map((day) => String(day));
+
+    const paymentRows = Array.from(paymentMap.entries()).map(([name, dayMap]) => {
+      const dayAmounts = paymentDayLabels.map((label) => {
+        const day = Number(label);
+        return dayMap.get(day) ? `Rs ${dayMap.get(day)}` : '-';
+      });
+      const total = Array.from(dayMap.values()).reduce((acc, value) => acc + value, 0);
+      return [name, ...dayAmounts, `Rs ${total}`];
+    });
+
+    nextY = (doc as any).lastAutoTable.finalY + 20;
+    doc.text('Payment Summary', 40, nextY);
+    autoTable(doc, {
+      startY: nextY + 10,
+      head: [['Member', ...paymentDayLabels, 'Total']],
+      body: paymentRows.length > 0 ? paymentRows : [Array(paymentDayLabels.length + 2).fill('-')],
+      styles: { fontSize: 7 },
+      theme: 'grid',
+    });
+
+    nextY = (doc as any).lastAutoTable.finalY + 20;
+    doc.text('Spent Summary', 40, nextY);
+    autoTable(doc, {
+      startY: nextY + 10,
+      head: [['Date', 'Description', 'Amount']],
+      body: data.expenses.map((e: any) => [
+        new Date(e.date).toLocaleDateString('en-GB'),
+        e.description,
+        `Rs ${e.amount}`,
+      ]),
+      styles: { fontSize: 9 },
+      theme: 'grid',
+    });
+
+    doc.save(`pgmaster-${monthStr}-summary.pdf`);
+  };
 
   return (
     <div className="p-4 md:p-8 space-y-8">
@@ -143,35 +294,40 @@ export default function HistoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.members.map((member: any) => {
-                    const meals = data.attendance.reduce((acc: number, curr: any) => 
-                      acc + (curr.isOfficial ? curr.records.filter((r: any) => r.userId === member._id && r.status).length : 0), 0);
-                    const paid = data.payments.filter((p: any) => (p.userId?._id || p.userId) === member._id).reduce((acc: number, p: any) => acc + p.amount, 0);
-                    const cookingChargePerUser = data.pg?.cookingChargePerUser?.[member._id] || 0;
-                    const cookingCharge = meals > 0 ? cookingChargePerUser : 0;
-                    const mealCost = meals * mealCharge;
-                    const balance = paid - mealCost - cookingCharge;
-
-                    return (
-                      <tr key={member._id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-all">
+                  {memberSummaries.map((member: any) => (
+                      <tr key={member.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-all">
                         <td className="p-4">
                            <p className="text-sm font-bold tracking-tight">{member.name}</p>
                            <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">{member.role}</p>
                         </td>
-                        <td className="p-4 text-sm font-black text-center">{meals}</td>
-                        <td className="p-4 text-xs font-bold text-center text-neutral-500 italic">₹{mealCost.toFixed(0)}</td>
-                        <td className="p-4 text-sm font-black text-center text-primary">₹{paid}</td>
-                        <td className="p-4 text-sm font-black text-center text-orange-400">₹{cookingCharge}</td>
-                        <td className={`p-4 text-base font-black text-right ${balance >= 0 ? 'text-primary' : 'text-red-500'}`}>
-                          ₹{balance.toFixed(0)}
+                        <td className="p-4 text-sm font-black text-center">{member.meals}</td>
+                        <td className="p-4 text-xs font-bold text-center text-neutral-500 italic">₹{member.mealCost.toFixed(0)}</td>
+                        <td className="p-4 text-sm font-black text-center text-primary">₹{member.paid}</td>
+                        <td className="p-4 text-sm font-black text-center text-orange-400">₹{member.cookingCharge}</td>
+                        <td className={`p-4 text-base font-black text-right ${member.balance >= 0 ? 'text-primary' : 'text-red-500'}`}>
+                          ₹{member.balance.toFixed(0)}
                         </td>
                       </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>
           </Card>
+
+            <Card className="border-primary/10 bg-black/30 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex gap-3">
+                <Download className="text-primary mt-1" />
+                <div>
+                  <h4 className="font-black text-sm uppercase italic tracking-tighter">Export Monthly PDF</h4>
+                  <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest leading-none">
+                    Individual, attendance, payments, and spend summary
+                  </p>
+                </div>
+              </div>
+              <Button size="md" onClick={handleDownloadPdf}>
+                Download {month.toLocaleDateString('en-US', { month: 'long' })}
+              </Button>
+            </Card>
 
           {/* Grid View */}
           <Card className="overflow-hidden">
@@ -229,6 +385,39 @@ export default function HistoryPage() {
                 <p className="flex items-center gap-1"><span className={`w-2 h-2 rounded-full  bg-gray-500`}/> Lunch</p>
                 <p className="flex items-center gap-1"><span className={`w-2 h-2 rounded-full  bg-purple-500`}/> Dinner</p>
               </div>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex items-center gap-2 mb-8">
+               <DollarSign size={16} className="text-primary" />
+               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-neutral-500 italic">Spent Summary</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[520px]">
+                <thead>
+                  <tr className="bg-white/5">
+                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">Date</th>
+                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">Description</th>
+                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.expenses.map((expense: any) => (
+                    <tr key={expense._id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-all">
+                      <td className="p-4 text-xs font-bold text-neutral-500">
+                        {new Date(expense.date).toLocaleDateString('en-GB')}
+                      </td>
+                      <td className="p-4 text-sm font-bold">
+                        {expense.description}
+                      </td>
+                      <td className="p-4 text-sm font-black text-right text-primary">
+                        Rs {expense.amount}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </Card>
         </>

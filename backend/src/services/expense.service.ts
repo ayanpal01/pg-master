@@ -32,7 +32,7 @@ export class ExpenseService {
       ...data,
       pgId: new mongoose.Types.ObjectId(pgId),
       createdBy: new mongoose.Types.ObjectId(userId),
-      spentBy: new mongoose.Types.ObjectId(data.spentBy ?? userId),
+      spentBy: new mongoose.Types.ObjectId(data.spentBy ? data.spentBy : userId),
       status: 'PENDING',
     });
     return expense.save();
@@ -64,7 +64,7 @@ export class ExpenseService {
       ...(data.amount !== undefined && { amount: data.amount }),
       ...(data.description !== undefined && { description: data.description }),
       ...(data.date !== undefined && { date: new Date(data.date) }),
-      ...(data.spentBy !== undefined && { spentBy: new mongoose.Types.ObjectId(data.spentBy) }),
+      ...(data.spentBy !== undefined && data.spentBy !== '' && { spentBy: new mongoose.Types.ObjectId(data.spentBy) }),
     };
     return Expense.findByIdAndUpdate(expenseId, update, { new: true });
   }

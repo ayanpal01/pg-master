@@ -29,7 +29,7 @@ router.get('/monthly', async (req: AuthenticatedRequest, res: Response): Promise
 
     const [attendance, expenses, payments, members, savedStat, pg] = await Promise.all([
       Attendance.find({ pgId, date: { $gte: startOfMonth, $lte: endOfMonth } }),
-      Expense.find({ pgId, date: { $gte: startOfMonth, $lte: endOfMonth }, status: 'APPROVED' }).populate('spentBy', 'name'),
+      Expense.find({ pgId, date: { $gte: startOfMonth, $lte: endOfMonth } }).populate('spentBy', 'name'),
       Payment.find({ pgId, date: { $gte: startOfMonth, $lte: endOfMonth } }).populate('userId', 'name'),
       User.find({ pgId }),
       MonthlyStat.findOne({ pgId, month: monthStr }),

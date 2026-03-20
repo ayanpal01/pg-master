@@ -34,13 +34,14 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
     }
     
     const { amount, description, date, spentBy } = req.body as AddExpenseBody;
+    const normalizedSpentBy = spentBy?.trim() ? spentBy.trim() : undefined;
     
     // Security: Ensure spentBy user belongs to same PG (if provided)
-    if (spentBy) {
+    if (normalizedSpentBy) {
       const { connectDB } = await import('../lib/db');
       const User = (await import('../models/user.model')).default;
       await connectDB();
-      const spentByUser = await User.findById(spentBy);
+      const spentByUser = await User.findById(normalizedSpentBy);
       if (!spentByUser || spentByUser.pgId?.toString() !== req.user.pgId.toString()) {
         res.status(403).json({ error: 'Cannot assign expense to user from different PG' });
         return;
@@ -50,7 +51,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
     const expense = await ExpenseService.addExpense(
       req.user.pgId.toString(),
       req.user._id.toString(),
-      { amount, description, date: new Date(date), spentBy }
+      { amount, description, date: new Date(date), spentBy: normalizedSpentBy }
     );
     res.status(201).json(expense);
   } catch (err) {
@@ -112,10 +113,11 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response): Promise<v
     }
 
     const { amount, description, date, spentBy } = req.body as UpdateExpenseBody;
+    const normalizedSpentBy = spentBy?.trim() ? spentBy.trim() : undefined;
     
-    if (spentBy) {
+    if (normalizedSpentBy) {
       const User = (await import('../models/user.model')).default;
-      const spentByUser = await User.findById(spentBy);
+      const spentByUser = await User.findById(normalizedSpentBy);
       if (!spentByUser || spentByUser.pgId?.toString() !== req.user.pgId.toString()) {
         res.status(403).json({ error: 'Cannot assign expense to user from different PG' });
         return;
@@ -126,7 +128,7 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response): Promise<v
       amount,
       description,
       date: date ? new Date(date) : undefined,
-      spentBy,
+      spentBy: normalizedSpentBy,
     });
     res.json(expense);
   } catch (err) {
