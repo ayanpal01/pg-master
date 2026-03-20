@@ -92,9 +92,24 @@ export default function HistoryPage() {
     doc.text(title, 40, 40);
 
     doc.setFontSize(12);
-    doc.text('Individual Summary', 40, 70);
+    doc.text('Monthly Totals', 40, 70);
     autoTable(doc, {
       startY: 80,
+      head: [['Metric', 'Value']],
+      body: [
+        ['Total Meals', totalMeals],
+        ['Meal Charge', `Rs ${mealCharge.toFixed(2)}`],
+        ['Total Spent', `Rs ${totalExpenses.toFixed(0)}`],
+        ['Total Paid', `Rs ${totalPayments.toFixed(0)}`],
+      ],
+      styles: { fontSize: 9 },
+      theme: 'grid',
+    });
+
+    let nextY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 20 : 120;
+    doc.text('Individual Summary', 40, nextY);
+    autoTable(doc, {
+      startY: nextY + 10,
       head: [[
         'Member',
         'Meals',
@@ -112,6 +127,14 @@ export default function HistoryPage() {
         `Rs ${row.balance.toFixed(0)}`,
       ]),
       styles: { fontSize: 9 },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 5) {
+          const balance = memberSummaries[data.row.index]?.balance;
+          if (typeof balance === 'number' && balance < 0) {
+            data.cell.styles.textColor = [220, 38, 38];
+          }
+        }
+      },
       theme: 'grid',
     });
 
@@ -145,7 +168,7 @@ export default function HistoryPage() {
       return [member.name, ...dayCounts, total];
     });
 
-    let nextY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 20 : 120;
+    nextY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 20 : 120;
     doc.text('Attendance Summary', 40, nextY);
     const attendanceHead = ['Member', ...dayLabels, 'Total'];
     const attendanceEmptyRow = Array(attendanceHead.length).fill('-');
