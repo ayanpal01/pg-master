@@ -48,20 +48,33 @@ export default function HistoryPage() {
     } catch (error) { alert('Failed to finalize month'); }
   };
 
+  const handleUpdateExtraMeals = async (userId: string, count: number) => {
+    try {
+      await apiClient.post('/api/stats/extra-meals', {
+        month: monthStr,
+        userId,
+        count
+      });
+      fetchStats();
+    } catch (error) { alert('Failed to update extra meals'); }
+  };
+
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const days = Array.from({ length: getDaysInMonth(month.getFullYear(), month.getMonth()) }, (_, i) => i + 1);
 
   if (!user) return null;
 
-  const totalMeals = data?.attendance.reduce((acc: number, curr: any) => 
-    acc + (curr.isOfficial ? curr.records.filter((r: any) => r.status).length : 0), 0) || 0;
+  const extraMealsCount = data?.extraMeals?.reduce((acc: number, curr: any) => acc + curr.count, 0) || 0;
+  const totalMeals = (data?.attendance.reduce((acc: number, curr: any) => 
+    acc + (curr.isOfficial ? curr.records.filter((r: any) => r.status).length : 0), 0) || 0) + extraMealsCount;
   const totalExpenses = data?.expenses.reduce((acc: number, curr: any) => acc + curr.amount, 0) || 0;
   const mealCharge = data?.savedStat ? data.savedStat.mealCharge : (totalMeals > 0 ? totalExpenses / totalMeals : 0);
   const totalPayments = data?.payments.reduce((acc: number, curr: any) => acc + curr.amount, 0) || 0;
 
   const memberSummaries = data?.members.map((member: any) => {
+    const extraMeals = data?.extraMeals?.find((em: any) => em.userId === member._id)?.count || 0;
     const meals = data.attendance.reduce((acc: number, curr: any) => 
-      acc + (curr.isOfficial ? curr.records.filter((r: any) => r.userId === member._id && r.status).length : 0), 0);
+      acc + (curr.isOfficial ? curr.records.filter((r: any) => r.userId === member._id && r.status).length : 0), 0) + extraMeals;
     const paid = data.payments
       .filter((p: any) => (p.userId?._id || p.userId) === member._id)
       .reduce((acc: number, p: any) => acc + p.amount, 0);
@@ -75,6 +88,7 @@ export default function HistoryPage() {
       name: member.name,
       role: member.role,
       meals,
+      extraMeals,
       mealCost,
       paid,
       cookingCharge,
@@ -112,7 +126,9 @@ export default function HistoryPage() {
       startY: nextY + 10,
       head: [[
         'Member',
-        'Meals',
+        // 'Attendance',
+        // 'Extra',
+        'Total Meals',
         'Meal Cost',
         'Paid',
         'Chef Fee',
@@ -120,6 +136,8 @@ export default function HistoryPage() {
       ]],
       body: memberSummaries.map((row: any) => [
         row.name,
+        // row.meals - row.extraMeals,
+        // row.extraMeals,
         row.meals,
         `Rs ${row.mealCost.toFixed(0)}`,
         `Rs ${row.paid}`,
@@ -169,7 +187,7 @@ export default function HistoryPage() {
     });
 
     nextY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 20 : 120;
-    doc.text('Attendance Summary', 40, nextY);
+    doc.text('Meal Count Summary', 40, nextY);
     const attendanceHead = ['Member', ...dayLabels, 'Total'];
     const attendanceEmptyRow = Array(attendanceHead.length).fill('-');
     autoTable(doc, {
@@ -309,7 +327,9 @@ export default function HistoryPage() {
                 <thead>
                   <tr className="bg-white/5">
                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500">Member</th>
-                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center">Meals</th>
+                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center">Regular</th>
+                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center">Extra</th>
+                    <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center">Total</th>
                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center">Meal Cost</th>
                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center">Paid</th>
                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center">Chef Fee</th>
@@ -322,6 +342,20 @@ export default function HistoryPage() {
                         <td className="p-4">
                            <p className="text-sm font-bold tracking-tight">{member.name}</p>
                            <p className="text-[9px] text-neutral-500 font-bold uppercase tracking-widest">{member.role}</p>
+                        </td>
+                        <td className="p-4 text-sm font-black text-center text-neutral-400">{member.meals - member.extraMeals}</td>
+                        <td className="p-4 text-sm font-black text-center">
+                          {user.role === 'MANAGER' && !data.savedStat?.isLocked ? (
+                            <input 
+                              type="number" 
+                              min="0"
+                              value={member.extraMeals}
+                              onChange={(e) => handleUpdateExtraMeals(member.id, parseInt(e.target.value) || 0)}
+                              className="w-12 bg-white/5 border border-white/10 rounded text-center text-xs p-1 focus:outline-none focus:border-primary/50"
+                            />
+                          ) : (
+                            member.extraMeals
+                          )}
                         </td>
                         <td className="p-4 text-sm font-black text-center">{member.meals}</td>
                         <td className="p-4 text-xs font-bold text-center text-neutral-500 italic">₹{member.mealCost.toFixed(0)}</td>

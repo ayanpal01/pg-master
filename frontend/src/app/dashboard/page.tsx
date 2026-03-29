@@ -162,6 +162,12 @@ export default function Dashboard() {
           meals += att.records.filter((r: any) => r.status).length;
         }
       });
+      // Add extra meals to the first day of the month for simplicity in chart, 
+      // or we could distribute them, but usually they are monthly additions.
+      // For now, let's just show them if they exist in the stats.
+      if (day === 1) {
+        meals += stats?.extraMeals?.reduce((acc: number, curr: any) => acc + curr.count, 0) || 0;
+      }
       stats.expenses.forEach((exp: any) => {
         if (new Date(exp.date).getDate() === day) expenses += exp.amount;
       });
@@ -172,11 +178,13 @@ export default function Dashboard() {
   const memberStats = useMemo(() => {
     if (!stats || !user) return null;
     const myPayments = stats.payments.filter((p: any) => (p.userId?._id || p.userId) === user._id).reduce((acc: number, p: any) => acc + p.amount, 0);
+    const myExtraMeals = stats.extraMeals?.find((em: any) => em.userId === user._id)?.count || 0;
     const myMeals = stats.attendance.reduce((acc: number, curr: any) => 
-      acc + curr.records.filter((r: any) => r.userId === user._id && r.status).length, 0);
+      acc + curr.records.filter((r: any) => r.userId === user._id && r.status).length, 0) + myExtraMeals;
     const totalExpenses = stats.expenses.reduce((acc: number, e: any) => acc + e.amount, 0);
+    const extraMealsCount = stats.extraMeals?.reduce((acc: number, curr: any) => acc + curr.count, 0) || 0;
     const totalMeals = stats.attendance.reduce((acc: number, curr: any) => 
-      acc + (curr.isOfficial ? curr.records.filter((r: any) => r.status).length : 0), 0);
+      acc + (curr.isOfficial ? curr.records.filter((r: any) => r.status).length : 0), 0) + extraMealsCount;
     const mealCharge = stats.savedStat ? stats.savedStat.mealCharge : (totalMeals > 0 ? totalExpenses / totalMeals : 0);
     const cookingChargePerUser = user.pgId?.cookingChargePerUser?.[user._id] || 0;
     const myCookingCharge = myMeals > 0 ? cookingChargePerUser : 0;
@@ -235,7 +243,7 @@ export default function Dashboard() {
             />
             <StatCard 
               label="Total Meals" 
-              value={stats?.attendance.reduce((acc: number, curr: any) => acc + curr.records.filter((r: any) => r.status).length, 0) || 0} 
+              value={(stats?.attendance.reduce((acc: number, curr: any) => acc + curr.records.filter((r: any) => r.status).length, 0) || 0) + (stats?.extraMeals?.reduce((acc: number, curr: any) => acc + curr.count, 0) || 0)} 
               icon={<Utensils />} 
             />
             <StatCard 
@@ -352,7 +360,7 @@ export default function Dashboard() {
                  <TrendingUp className="text-orange-400" size={24} />
                  <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400/70">Trend Analysis</p>
-                    <p className="text-xs text-neutral-400 leading-tight">Your PG's daily meal average is <span className="text-white font-bold">{(stats?.attendance.reduce((acc: number, curr: any) => acc + (curr.isOfficial ? curr.records.filter((r: any) => r.status).length : 0), 0) / (new Date().getDate() || 1)).toFixed(1)}</span></p>
+                    <p className="text-xs text-neutral-400 leading-tight">Your PG's daily meal average is <span className="text-white font-bold">{((stats?.attendance.reduce((acc: number, curr: any) => acc + (curr.isOfficial ? curr.records.filter((r: any) => r.status).length : 0), 0) + (stats?.extraMeals?.reduce((acc: number, curr: any) => acc + curr.count, 0) || 0)) / (new Date().getDate() || 1)).toFixed(1)}</span></p>
                  </div>
               </div>
             </Card>

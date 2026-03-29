@@ -15,6 +15,14 @@ export interface PopulatedUser {
   role?: 'MANAGER' | 'MEMBER';
 }
 
+export interface IExtraMeal {
+  _id?: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  pgId: mongoose.Types.ObjectId;
+  month: string;
+  count: number;
+}
+
 // ─── Request body types ────────────────────────────────────────────────────────
 
 export interface LoginBody {
@@ -98,6 +106,12 @@ export interface FinalizeMonthBody {
   totalExpenses: number;
 }
 
+export interface SetExtraMealsBody {
+  month: string;
+  userId: string;
+  count: number;
+}
+
 // ─── Stats response types ──────────────────────────────────────────────────────
 
 export interface MonthlyStatsResponse {
@@ -105,6 +119,7 @@ export interface MonthlyStatsResponse {
   expenses: mongoose.Document[];
   payments: mongoose.Document[];
   members: mongoose.Document[];
+  extraMeals: mongoose.Document[];
   savedStat: mongoose.Document | null;
   pg: mongoose.Document | null;
 }

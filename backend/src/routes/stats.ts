@@ -7,7 +7,8 @@ import Payment from '../models/payment.model';
 import User from '../models/user.model';
 import PG from '../models/pg.model';
 import MonthlyStat from '../models/monthly-stat.model';
-import { FinalizeMonthBody } from '../types';
+import ExtraMeal from '../models/extra-meal.model';
+import { FinalizeMonthBody, SetExtraMealsBody } from '../types';
 
 const router = Router();
 router.use(authMiddleware);
@@ -27,16 +28,17 @@ router.get('/monthly', async (req: AuthenticatedRequest, res: Response): Promise
     await connectDB();
     const pgId = req.user.pgId;
 
-    const [attendance, expenses, payments, members, savedStat, pg] = await Promise.all([
+    const [attendance, expenses, payments, members, extraMeals, savedStat, pg] = await Promise.all([
       Attendance.find({ pgId, date: { $gte: startOfMonth, $lte: endOfMonth } }),
       Expense.find({ pgId, date: { $gte: startOfMonth, $lte: endOfMonth } }).populate('spentBy', 'name'),
       Payment.find({ pgId, date: { $gte: startOfMonth, $lte: endOfMonth } }).populate('userId', 'name'),
       User.find({ pgId }),
+      ExtraMeal.find({ pgId, month: monthStr }),
       MonthlyStat.findOne({ pgId, month: monthStr }),
       PG.findById(pgId),
     ]);
 
-    res.json({ attendance, expenses, payments, members, savedStat, pg });
+    res.json({ attendance, expenses, payments, members, extraMeals, savedStat, pg });
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error });
@@ -88,6 +90,32 @@ router.post('/monthly/finalize', async (req: AuthenticatedRequest, res: Response
       { upsert: true, new: true }
     );
     res.json(stat);
+  } catch (err) {
+    const error = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error });
+  }
+});
+
+// POST /api/stats/extra-meals — manager sets extra meals for a user
+router.post('/extra-meals', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user || req.user.role !== 'MANAGER') {
+      res.status(403).json({ error: 'Forbidden' }); return;
+    }
+    const { month, userId, count } = req.body as SetExtraMealsBody;
+    if (!month || !userId || count === undefined) {
+      res.status(400).json({ error: 'month, userId, and count are required' }); return;
+    }
+
+    await connectDB();
+    const pgId = req.user.pgId;
+
+    const extraMeal = await ExtraMeal.findOneAndUpdate(
+      { pgId, month, userId },
+      { pgId, month, userId, count },
+      { upsert: true, new: true }
+    );
+    res.json(extraMeal);
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error });
